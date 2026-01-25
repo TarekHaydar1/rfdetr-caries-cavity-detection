@@ -1,0 +1,36 @@
+# =========================
+# Optimizer settings
+# =========================
+dataset_dir: "C:\\Project\\dataset"  # Path to dataset in COCO format
+output_dir: "C:\\Project\\train_output"  # Directory to save checkpoints and logs
+lr: 1e-4                   # Learning rate for transformer + head
+lr_encoder: 1e-5           # Learning rate for backbone (if unfrozen)
+weight_decay: 1e-4         # L2 regularization to prevent overfitting
+
+# =========================
+# Training settings
+# =========================
+batch_size: 2               # Number of images per batch (adjust to VRAM)
+grad_accum_steps: 4         # Gradient accumulation steps to simulate larger batch
+epochs: 50                  # Total number of epochs
+freeze_encoder: True        # Freeze backbone initially
+resolution: 640             # Input image resolution (height=width)
+multi_scale: true           # Enable multi-scale training
+gradient_checkpointing: False # Save GPU memory by recomputing some activations
+num_workers: 4              # CPU processes for data loading
+early_stopping: True        # Stop if no improvement for these many epochs
+
+# =========================
+# EMA (Exponential Moving Average)
+# =========================
+use_ema: true               # Maintain EMA shadow weights
+ema_decay: 0.9997           # EMA decay factor (closer to 1 = smoother)
+
+# =========================
+# Logging
+# =========================
+wandb: false                 # Enable Weights & Biases logging
+tensorboard: true            # Enable TensorBoard logging
+# =========================
+#resume="path/to/checkpoint_epoch_12.pt"
+

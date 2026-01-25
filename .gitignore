@@ -1,0 +1,20 @@
+ Python
+__pycache__/
+*.pyc
+
+# Data (DO NOT UPLOAD DATASETS)
+data/
+dataset/
+*.jpg
+*.png
+
+# Training outputs
+train_output/
+runs/
+checkpoints/
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store

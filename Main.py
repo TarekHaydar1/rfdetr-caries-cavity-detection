@@ -1,6 +1,9 @@
 import torch
 from Model import RFDETR
 import cv2
+import torch
+
+import os
 
 
 def camera_feed_with_detection():
@@ -9,12 +12,17 @@ def camera_feed_with_detection():
        
 if __name__ == "__main__":
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  if 'COLAB_TPU_ADDR' in os.environ:
+    device = xm.xla_device()  # TPU
+  elif torch.cuda.is_available():
+    device = torch.device("cuda")  # GPU
+  else:
+    device = torch.device("cpu")   # CPU fallback
     
     
     model = RFDETR()
 
-    mode = input("\n\n1. Train the model \n2. Run prediction \n3. AI Camera feed\n4. Exit\nSelect mode: ")
+    mode = input("\n\n1. Train the model \n2. Run prediction \n3. Exit\nSelect mode: ")
     
     
 
@@ -36,6 +44,6 @@ if __name__ == "__main__":
 
 
 
-    if mode == "4":
+    if mode == "3":
      exit()
     exit() 

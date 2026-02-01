@@ -1,9 +1,10 @@
 import supervision as sv 
 import cv2
-import torch
 from rfdetr import RFDETRBase
 import yaml
-
+from torchvision import transforms as T
+from torchvision.datasets import CocoDetection
+from rfdetr.datasets.coco import make_coco_transforms
 
 """ 
 RFDETR model
@@ -16,18 +17,58 @@ Head → Prediction of bounding boxes and class labels
 
 class RFDETR():
 
+
     def __init__(self):
         self.model = RFDETRBase(pretrained=True)
 
+
+    def collate_fn(self, batch):
+
+     return tuple(zip(*batch))
+
+
+    def dataset_preparation(self):
         
-    def training(self):
+        train_transforms = make_coco_transforms("train",resolution=672)
+        val_transforms   = make_coco_transforms("val",resolution=672)
+        test_transforms   = make_coco_transforms("val",resolution=672)
+        
+        self.train_dataset = CocoDetection(
+         root=r"C://Project//dataset//train",
+         annFile=r"C://Project//dataset//train//_annotations.coco.json",
+         transform=train_transforms)
+
+        self.val_dataset = CocoDetection(
+         root="C://Project//dataset//valid",
+         annFile="C://Project//dataset//valid//_annotations.coco.json",
+         transform=val_transforms)
+
+        self.test_dataset = CocoDetection(
+         root="C://Project//dataset//test",
+         annFile="C://Project//dataset//test//_annotations.coco.json",
+         transform=test_transforms)
+        
+
+        return self.train_dataset, self.val_dataset, self.test_dataset
+
+
+
+
+    def training(self,train_dataset, val_dataset, test_dataset):
         
         with open("parameters.yaml", "r") as f:
          config = yaml.safe_load(f)
+        
+        config['train_dataset'] = train_dataset
+        config['val_dataset'] = val_dataset
+        config['test_dataset'] = test_dataset
+        config['collate_fn'] = self.collate_fn
 
         self.trained_model = self.model.train(**config)
 
         return self.trained_model
+
+
 
 
     def predict(self, img, threshold, trained):
@@ -63,9 +104,6 @@ class RFDETR():
         return detections, annotated_img
 
         
-
-
-
     
 
 

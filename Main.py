@@ -12,22 +12,19 @@ def camera_feed_with_detection():
        
 if __name__ == "__main__":
     
-  if 'COLAB_TPU_ADDR' in os.environ:
-    device = xm.xla_device()  # TPU
-  elif torch.cuda.is_available():
+  if torch.cuda.is_available():
     device = torch.device("cuda")  # GPU
   else:
     device = torch.device("cpu")   # CPU fallback
     
-    
     model = RFDETR()
+    
 
     mode = input("\n\n1. Train the model \n2. Run prediction \n3. Exit\nSelect mode: ")
-    
-    
 
     if mode == "1":
-     trained_model = model.training()
+     train_dataset, val_dataset, test_dataset = model.dataset_preparation()
+     trained_model = model.training(train_dataset, val_dataset, test_dataset)
 
     if mode == "2":
      

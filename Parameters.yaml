@@ -15,7 +15,6 @@ batch_size: 2               # Number of images per batch (adjust to VRAM)
 grad_accum_steps: 4         # Gradient accumulation steps to simulate larger batch
 epochs: 50                  # Total number of epochs
 freeze_encoder: True        # Freeze backbone initially
-resolution: 640             # Input image resolution (height=width)
 multi_scale: true           # Enable multi-scale training
 gradient_checkpointing: False # Save GPU memory by recomputing some activations
 num_workers: 4              # CPU processes for data loading

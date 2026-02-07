@@ -13,7 +13,7 @@ warmup_epochs: 5           # Number of epochs for linear warmup at the start of 
 # =========================
 # Training settings
 # =========================
-batch_size: 6              # Number of images per batch (adjust to VRAM)
+batch_size: 8              # Number of images per batch (adjust to VRAM)
 grad_accum_steps: 4         # Gradient accumulation steps to simulate larger batch
 epochs: 50                  # Total number of epochs
 freeze_encoder: False        # Freeze backbone initially

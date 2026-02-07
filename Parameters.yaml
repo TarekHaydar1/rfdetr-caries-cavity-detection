@@ -7,18 +7,29 @@ output_dir: "C:\\Project\\train_output"  # Directory to save checkpoints and log
 lr: 1e-4                   # Learning rate for transformer + head
 lr_encoder: 1e-5           # Learning rate for backbone (if unfrozen)
 weight_decay: 1e-4         # L2 regularization to prevent overfitting
-
+lr_scheduler: "cosine"     # Learning rate scheduler type (e.g., "cosine", "step")
+lr_min_factor: 0.05        # Minimum LR as a fraction of initial LR for cosine scheduler
+warmup_epochs: 5           # Number of epochs for linear warmup at the start of training
 # =========================
 # Training settings
 # =========================
-batch_size: 2               # Number of images per batch (adjust to VRAM)
+batch_size: 6              # Number of images per batch (adjust to VRAM)
 grad_accum_steps: 4         # Gradient accumulation steps to simulate larger batch
 epochs: 50                  # Total number of epochs
-freeze_encoder: True        # Freeze backbone initially
+freeze_encoder: False        # Freeze backbone initially
 multi_scale: true           # Enable multi-scale training
 gradient_checkpointing: False # Save GPU memory by recomputing some activations
 num_workers: 4              # CPU processes for data loading
 early_stopping: True        # Stop if no improvement for these many epochs
+
+# =========================
+# Advanced Loss Settings
+# =========================
+focal_alpha: 0.25      # Balance between foreground/background
+focal_gamma: 2.0       # Higher = more focus on "hard" tiny dental features
+loss_class_weight: 2.0 # Increase importance of classification
+loss_bbox_weight: 5.0  # Precision on box placement is critical for dental
+loss_giou_weight: 2.0  # Generalized IoU for better overlap
 
 # =========================
 # EMA (Exponential Moving Average)

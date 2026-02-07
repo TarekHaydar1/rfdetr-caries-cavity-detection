@@ -29,10 +29,19 @@ class RFDETR():
 
     def dataset_preparation(self):
         
-        train_transforms = make_coco_transforms("train",resolution=672)
-        val_transforms   = make_coco_transforms("val",resolution=672)
-        test_transforms   = make_coco_transforms("val",resolution=672)
+        train_transforms = make_coco_transforms(image_set="train",
+                                                resolution=672,
+                                                multi_scale=True,           
+                                                expanded_scales=True,       
+                                                skip_random_resize=False)
         
+        val_transforms = make_coco_transforms(image_set="val",
+                                                resolution=672)
+        
+        test_transforms = make_coco_transforms(image_set="val",
+                                                resolution=672)                
+        
+
         self.train_dataset = CocoDetection(
          root=r"C://Project//dataset//train",
          annFile=r"C://Project//dataset//train//_annotations.coco.json",
@@ -63,6 +72,7 @@ class RFDETR():
         config['val_dataset'] = val_dataset
         config['test_dataset'] = test_dataset
         config['collate_fn'] = self.collate_fn
+
 
         self.trained_model = self.model.train(**config)
 
@@ -102,11 +112,3 @@ class RFDETR():
         print(f"Annotated image saved to: {output_path}")
 
         return detections, annotated_img
-
-        
-    
-
-
-
-
-

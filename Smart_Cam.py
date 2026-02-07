@@ -1,90 +1,75 @@
+"""
+Dental Camera AI - Simplified
+Small GUI to stream camera to virtual camera with optional AI overlay
+"""
+
 import cv2
 import torch
-import numpy as np
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
 import threading
-import time
-import argparse
-import logging
-from queue import Queue
+import json
+from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-logger = logging.getLogger(__name__)
-
-#==================
-
-class Camera:
-    
-    def __init__(self, index=0):
-        self.cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-        self.frame = None
-        self.lock = threading.Lock()
-        self.running = False
-        
-    def start(self):
-        self.running = True
-        threading.Thread(target=self._capture, daemon=True).start()
-        
-    def _capture(self):
-        while self.running:
-            ret, frame = self.cap.read()
-            if ret:
-                with self.lock:
-                    self.frame = frame
-                    
-    def read(self):
-        with self.lock:
-            return self.frame.copy() if self.frame is not None else None
-            
-    def stop(self):
-        self.running = False
-        self.cap.release()
-
+CONFIG_FILE = Path.home() / '.dental_camera.json'
 
 # ============================================================================
-# AI INFERENCE
+# HELPERS
 # ============================================================================
 
-class AIModel:
-    """RF-DETR model wrapper."""
+def load_settings():
+    """Load saved settings."""
+    try:
+        return json.load(open(CONFIG_FILE))
+    except:
+        return {'camera': 0, 'model': '', 'use_ai': False}
+
+def save_settings(camera, model, use_ai):
+    """Save settings."""
+    json.dump({'camera': camera, 'model': model, 'use_ai': use_ai}, 
+              open(CONFIG_FILE, 'w'))
+
+def find_cameras():
+    """Find all cameras."""
+    cameras = []
+    for i in range(10):
+        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+        if cap.isOpened() and cap.read()[0]:
+            cameras.append(i)
+        cap.release()
+    return cameras
+
+# ============================================================================
+# AI MODEL
+# ============================================================================
+
+class AIDetector:
+    """Simple AI model wrapper."""
     
-    def __init__(self, model_path, device='cuda'):
-        self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
-        logger.info(f"Using device: {self.device}")
+    def __init__(self, model_path):
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        checkpoint = torch.load(model_path, map_location=device)
+        self.model = checkpoint.get('model', checkpoint)
+        self.model.to(device).eval()
+        self.device = device
+    
+    def process(self, frame):
+        """Detect and draw boxes."""
+        # Prepare image
+        img = cv2.resize(frame, (640, 640))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
+        img = img.unsqueeze(0).to(self.device)
         
-        # Load model
-        try:
-            checkpoint = torch.load(model_path, map_location=self.device)
-            self.model = checkpoint.get('model', checkpoint)
-            self.model.to(self.device).eval()
-            logger.info("Model loaded")
-        except Exception as e:
-            logger.error(f"Model load failed: {e}")
-            self.model = None
+        # Detect
+        with torch.no_grad():
+            out = self.model(img)
+        
+        # Draw (adjust to your model output format)
+        if isinstance(out, dict):
+            boxes = out.get('pred_boxes', [[]])[0]
+            scores = out.get('pred_logits', [[]])[0].softmax(-1).max(-1)[0]
             
-    def infer(self, frame):
-        """Run inference and draw boxes."""
-        if self.model is None:
-            return frame
-            
-        try:
-            # Preprocess
-            img = cv2.resize(frame, (640, 640))
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
-            img = img.unsqueeze(0).to(self.device)
-            
-            # Inference
-            with torch.no_grad():
-                pred = self.model(img)
-            
-            # Postprocess - ADAPT THIS TO YOUR MODEL OUTPUT FORMAT
-            if isinstance(pred, dict):
-                boxes = pred.get('pred_boxes', [[]])[0]
-                scores = pred.get('pred_logits', [[]])[0].softmax(-1).max(-1)[0]
-            else:
-                return frame  # Unknown format, return original
-                
-            # Draw boxes
             h, w = frame.shape[:2]
             for box, score in zip(boxes, scores):
                 if score > 0.5:
@@ -93,197 +78,199 @@ class AIModel:
                     x2, y2 = int((cx + bw/2) * w), int((cy + bh/2) * h)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(frame, f'{score:.2f}', (x1, y1-5),
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            
-            return frame
-            
-        except Exception as e:
-            logger.error(f"Inference error: {e}")
-            return frame
-
-
-# ============================================================================
-# VIRTUAL CAMERA
-# ============================================================================
-
-class VirtualCam:
-    """Virtual camera output."""
-    
-    def __init__(self, width, height, fps):
-        try:
-            import pyvirtualcam
-            self.cam = pyvirtualcam.Camera(width, height, fps, fmt=pyvirtualcam.PixelFormat.BGR)
-            logger.info(f"Virtual camera: {self.cam.device}")
-        except Exception as e:
-            logger.warning(f"Virtual camera unavailable: {e}")
-            self.cam = None
-            
-    def send(self, frame):
-        if self.cam:
-            self.cam.send(frame)
-
-
-# ============================================================================
-# BUTTON DETECTION
-# ============================================================================
-
-class ButtonListener:
-    """HID button detection."""
-    
-    def __init__(self, callback):
-        self.callback = callback
-        self.running = False
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         
-        try:
-            import hid
-            self.hid = hid
-            self.available = True
-        except ImportError:
-            logger.warning("HID library not available - no button detection")
-            self.available = False
-            
+        return frame
+
+# ============================================================================
+# CAMERA STREAM
+# ============================================================================
+
+class CameraStream:
+    """Handles camera → virtual camera streaming."""
+    
+    def __init__(self, camera_idx, ai_model=None):
+        self.running = False
+        self.ai = ai_model
+        
+        # Open camera
+        self.cap = cv2.VideoCapture(camera_idx, cv2.CAP_DSHOW)
+        if not self.cap.isOpened():
+            raise Exception("Camera not available")
+        
+        # Get resolution
+        w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(self.cap.get(cv2.CAP_PROP_FPS) or 30)
+        
+        # Setup virtual camera
+        import pyvirtualcam
+        self.vcam = pyvirtualcam.Camera(w, h, fps, fmt=pyvirtualcam.PixelFormat.BGR)
+    
     def start(self):
-        if not self.available:
-            return
-            
+        """Start streaming."""
         self.running = True
-        threading.Thread(target=self._listen, daemon=True).start()
-        
-    def _listen(self):
-        devices = []
-        
-        # Open all HID devices
-        for dev_info in self.hid.enumerate():
-            try:
-                dev = self.hid.device()
-                dev.open_path(dev_info['path'])
-                dev.set_nonblocking(True)
-                devices.append((dev, dev_info))
-                logger.info(f"Monitoring: {dev_info.get('product_string', 'Unknown')}")
-            except:
-                pass
-        
-        last_states = {}
-        
+        threading.Thread(target=self._loop, daemon=True).start()
+    
+    def _loop(self):
+        """Main loop: read → process → send."""
         while self.running:
-            for dev, dev_info in devices:
-                try:
-                    data = dev.read(64)
-                    if data:
-                        path = dev_info['path']
-                        # Detect any change in data as button press
-                        if path not in last_states or last_states[path] != data:
-                            last_states[path] = data
-                            # Any non-zero byte = button press
-                            if any(d != 0 for d in data):
-                                logger.info(f"Button pressed: {bytes(data).hex()}")
-                                self.callback()
-                except:
-                    pass
-            time.sleep(0.01)
-            
+            ret, frame = self.cap.read()
+            if ret:
+                # Apply AI if enabled
+                if self.ai:
+                    frame = self.ai.process(frame)
+                # Send to virtual camera
+                self.vcam.send(frame)
+    
     def stop(self):
+        """Stop streaming."""
         self.running = False
-
+        self.cap.release()
 
 # ============================================================================
-# KEYSTROKE SENDER
+# GUI
 # ============================================================================
 
-class KeystrokeSender:
-    """Send keystrokes."""
-    
+class App:
     def __init__(self):
+        # Window
+        self.win = tk.Tk()
+        self.win.title("Dental Camera AI")
+        self.win.geometry("380x280")
+        self.win.resizable(False, False)
+        
+        # Load settings
+        settings = load_settings()
+        self.cameras = find_cameras()
+        self.stream = None
+        
+        # Variables
+        self.cam_var = tk.StringVar()
+        self.ai_var = tk.BooleanVar(value=settings['use_ai'])
+        self.model_var = tk.StringVar(value=settings['model'])
+        
+        # Build UI
+        self._build_ui()
+        
+        # Populate cameras
+        if self.cameras:
+            self.cam_combo['values'] = [f"Camera {i}" for i in self.cameras]
+            idx = self.cameras.index(settings['camera']) if settings['camera'] in self.cameras else 0
+            self.cam_combo.current(idx)
+        else:
+            self.cam_combo['values'] = ["No cameras"]
+            self.cam_combo.current(0)
+    
+    def _build_ui(self):
+        """Build interface."""
+        pad = {'padx': 15, 'pady': 8}
+        
+        # Title
+        ttk.Label(self.win, text="🦷 Dental Camera AI", 
+                 font=("Arial", 14, "bold")).pack(pady=15)
+        
+        # Camera selection
+        ttk.Label(self.win, text="Camera:").pack(anchor='w', **pad)
+        self.cam_combo = ttk.Combobox(self.win, textvariable=self.cam_var, 
+                                      state="readonly", width=40)
+        self.cam_combo.pack(**pad)
+        
+        # AI toggle
+        ttk.Checkbutton(self.win, text="Enable AI Detection", 
+                       variable=self.ai_var).pack(anchor='w', **pad)
+        
+        # Model path
+        model_frame = ttk.Frame(self.win)
+        model_frame.pack(fill='x', **pad)
+        ttk.Entry(model_frame, textvariable=self.model_var, 
+                 state="readonly", width=28).pack(side='left', padx=(15, 5))
+        ttk.Button(model_frame, text="Browse", 
+                  command=self._browse, width=8).pack(side='left')
+        
+        # Status
+        self.status = ttk.Label(self.win, text="⚪ Stopped", font=("Arial", 10))
+        self.status.pack(pady=10)
+        
+        # Start button
+        self.btn = ttk.Button(self.win, text="▶ Start", 
+                             command=self._toggle, width=20)
+        self.btn.pack(pady=10)
+        
+        self.win.protocol("WM_DELETE_WINDOW", self._close)
+    
+    def _browse(self):
+        """Browse for model."""
+        path = filedialog.askopenfilename(
+            filetypes=[("Model", "*.pt *.pth"), ("All", "*.*")])
+        if path:
+            self.model_var.set(path)
+    
+    def _toggle(self):
+        """Start/Stop stream."""
+        if not self.stream:
+            self._start()
+        else:
+            self._stop()
+    
+    def _start(self):
+        """Start virtual camera."""
         try:
-            from pynput.keyboard import Controller, Key
-            self.kb = Controller()
-            self.Key = Key
-            self.available = True
-            logger.info("Keystroke sender ready")
-        except ImportError:
-            logger.warning("pynput not available - no keystroke sending")
-            self.available = False
+            # Get camera index
+            if not self.cameras:
+                messagebox.showerror("Error", "No cameras found")
+                return
+            cam_idx = self.cameras[self.cam_combo.current()]
             
-    def send_space(self):
-        """Send space key (capture)."""
-        if self.available:
-            self.kb.press(self.Key.space)
-            time.sleep(0.01)
-            self.kb.release(self.Key.space)
-            logger.info("Sent: SPACE")
-
+            # Load AI model if enabled
+            ai_model = None
+            if self.ai_var.get():
+                model_path = self.model_var.get()
+                if not model_path:
+                    messagebox.showerror("Error", "Select model file")
+                    return
+                self.status.config(text="🟡 Loading AI...")
+                self.win.update()
+                ai_model = AIDetector(model_path)
+            
+            # Start stream
+            self.status.config(text="🟡 Starting...")
+            self.win.update()
+            self.stream = CameraStream(cam_idx, ai_model)
+            self.stream.start()
+            
+            # Update UI
+            self.btn.config(text="⏹ Stop")
+            self.status.config(text="🟢 Active")
+            
+            # Save settings
+            save_settings(cam_idx, self.model_var.get(), self.ai_var.get())
+            
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            self.status.config(text="⚪ Stopped")
+            self.stream = None
+    
+    def _stop(self):
+        """Stop stream."""
+        if self.stream:
+            self.stream.stop()
+            self.stream = None
+        self.btn.config(text="▶ Start")
+        self.status.config(text="⚪ Stopped")
+    
+    def _close(self):
+        """Clean exit."""
+        self._stop()
+        self.win.destroy()
+    
+    def run(self):
+        """Run app."""
+        self.win.mainloop()
 
 # ============================================================================
-# MAIN APP
+# MAIN
 # ============================================================================
-
-def main():
-    parser = argparse.ArgumentParser(description='Dental Camera AI')
-    parser.add_argument('--camera', type=int, default=0, help='Camera index')
-    parser.add_argument('--model', type=str, default=None, help='Model path')
-    args = parser.parse_args()
-    
-    logger.info("Starting Dental Camera AI...")
-    
-    # Initialize components
-    camera = Camera(args.camera)
-    camera.start()
-    time.sleep(1)  # Wait for camera
-    
-    # Get frame properties
-    test_frame = camera.read()
-    if test_frame is None:
-        logger.error("Camera not working")
-        return
-    h, w = test_frame.shape[:2]
-    
-    # AI model (optional)
-    ai_model = AIModel(args.model) if args.model else None
-    
-    # Virtual camera
-    vcam = VirtualCam(w, h, 30)
-    
-    # Keystroke sender
-    keystroke = KeystrokeSender()
-    
-    # Button listener
-    def on_button():
-        keystroke.send_space()
-    
-    button_listener = ButtonListener(on_button)
-    button_listener.start()
-    
-    logger.info(f"Running on camera {args.camera} ({w}x{h})")
-    logger.info("Press Ctrl+C to stop")
-    
-    # Main loop
-    try:
-        while True:
-            frame = camera.read()
-            if frame is None:
-                time.sleep(0.01)
-                continue
-            
-            # Apply AI
-            if ai_model:
-                frame = ai_model.infer(frame)
-            
-            # Send to virtual camera
-            vcam.send(frame)
-            
-            # Show preview (optional)
-            cv2.imshow('Dental Camera AI', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-                
-    except KeyboardInterrupt:
-        logger.info("Stopping...")
-    
-    # Cleanup
-    camera.stop()
-    button_listener.stop()
-    cv2.destroyAllWindows()
-
 
 if __name__ == '__main__':
-    main()
+    App().run()

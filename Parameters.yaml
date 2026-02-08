@@ -41,7 +41,7 @@ ema_decay: 0.9997           # EMA decay factor (closer to 1 = smoother)
 # Logging
 # =========================
 wandb: false                 # Enable Weights & Biases logging
-tensorboard: true            # Enable TensorBoard logging
+tensorboard: false            # Enable TensorBoard logging
 # =========================
 #resume="path/to/checkpoint_epoch_12.pt"
 

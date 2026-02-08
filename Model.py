@@ -15,40 +15,6 @@ Neck/transformer → DETR-style attention module
 Head → Prediction of bounding boxes and class labels
 """
 
-class LiveVisualizerCallback:
-     def __init__(self):
-        import matplotlib.pyplot as plt
-        self.train_losses = []
-        self.val_losses = []
-        self.steps = []
-
-     def on_step_end(self, step, logs):
-        """Called at end of each training step"""
-        self.steps.append(step)
-        self.train_losses.append(logs.get("train_loss", np.nan))
-        self.val_losses.append(logs.get("val_loss", np.nan))
-        self._plot()
-
-     def on_epoch_end(self, epoch, logs):
-        """Optional: called at the end of each epoch"""
-        print(f"Epoch {epoch} - train_loss: {logs.get('train_loss')}, val_loss: {logs.get('val_loss')}")
-
-     def _plot(self):
-        import matplotlib.pyplot as plt
-        plt.figure(figsize=(6,4))
-        plt.plot(self.steps, self.train_losses, label="Train Loss")
-        plt.plot(self.steps, self.val_losses, label="Val Loss")
-        plt.xlabel("Step")
-        plt.ylabel("Loss")
-        plt.legend()
-        plt.grid(True)
-        plt.pause(0.001)
-        plt.clf()
-
-
-
-
-
 class RFDETR():
 
 
@@ -128,7 +94,6 @@ class RFDETR():
           config = yaml.safe_load(f)
         
         
-        config["callbacks"] = [LiveVisualizerCallback()]
         self.trained_model = self.model.train(train_dataset=train_dataset,
                                               val_dataset=val_dataset,
                                               test_dataset=test_dataset,

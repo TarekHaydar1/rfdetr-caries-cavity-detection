@@ -23,8 +23,10 @@ early_stopping: True        # Stop if no improvement for these many epochs
 # =========================
 # Advanced Loss Settings
 # =========================
-focal_alpha: 0.25      # Balance between foreground/background
-focal_gamma: 4.0       # Higher = more focus on "hard" tiny dental features
+#{"id":1,"name":"Caries","supercategory":"dental"},{"id":2,"name":"Cavity","supercategory":"dental"}
+#{"id":3,"name":"Crack","supercategory":"dental"},{"id":4,"name":"Tooth","supercategory":"dental"}
+focal_alpha:  0.25   # Balance between foreground/background
+focal_gamma: 3.5       # Higher = more focus on "hard" tiny dental features
 loss_class_weight: 4.0 # Increase importance of classification
 loss_bbox_weight: 6.0  # Precision on box placement is critical for dental
 loss_giou_weight: 4.0  # Generalized IoU for better overlap

@@ -1,6 +1,6 @@
 import supervision as sv 
 import cv2
-from rfdetr import RFDETRBase
+from rfdetr import RFDETRMedium
 import yaml
 from torchvision import transforms as T
 from torchvision.datasets import CocoDetection
@@ -19,7 +19,7 @@ class RFDETR():
 
 
     def __init__(self):
-        self.model = RFDETRBase(pretrained=True)
+        self.model = RFDETRMedium(pretrained=True)
 
 
     def collate_fn(self, batch):
@@ -99,8 +99,8 @@ class RFDETR():
                                               val_dataset=val_dataset,
                                               test_dataset=test_dataset,
                                               collate_fn=self.collate_fn,
-                                              dataset_dir= dataset_dir,
-                                              output_dir= output_dir,
+                                              dataset_dir= "C:\\Project\\dataset",
+                                              output_dir= "C:\\Project\\train_output",
                                               **config)
 
         return self.trained_model

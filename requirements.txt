@@ -1,4 +1,4 @@
-torch==2.9.0
+torch==2.9.1
 torchvision==0.24.1
 opencv-python==4.12.0.88
 supervision==0.27.0
@@ -6,3 +6,4 @@ rfdetr>=0.1.5
 wandb>=0.15.0
 tensorboard>=2.15.0
 pyyaml>=6.0
+transformers==4.47.1

@@ -26,8 +26,11 @@ if __name__ == "__main__":
      
      #Prediction on a single image
      # Load image
-     img = cv2.imread(r"C:\\Project\\images.jpg")
-    
+     try:
+      img = cv2.imread(r"C:\\Project\\images.jpg")
+     except Exception as e:
+      img = cv2.imread(r"/content/rfdetr-caries-cavity-detection/images.jpg")  
+
      detections, annotated_img = model.predict(
         img, threshold=0.5, trained=True)
      

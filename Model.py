@@ -41,22 +41,38 @@ class RFDETR():
         test_transforms = make_coco_transforms(image_set="val",
                                                 resolution=672)                
         
-
-        self.train_dataset = CocoDetection(
+        try:
+         self.train_dataset = CocoDetection(
          root=r"C://Project//dataset//train",
          annFile=r"C://Project//dataset//train//_annotations.coco.json",
          transform=train_transforms)
 
-        self.val_dataset = CocoDetection(
+         self.val_dataset = CocoDetection(
          root="C://Project//dataset//valid",
          annFile="C://Project//dataset//valid//_annotations.coco.json",
          transform=val_transforms)
 
-        self.test_dataset = CocoDetection(
+         self.test_dataset = CocoDetection(
          root="C://Project//dataset//test",
          annFile="C://Project//dataset//test//_annotations.coco.json",
          transform=test_transforms)
-        
+         
+        except Exception as e:
+         self.train_dataset = CocoDetection(
+         root=r"/content/drive/MyDrive/Dataset.coco/train/train",
+         annFile=r"/content/drive/MyDrive/Dataset.coco/train/_annotations.coco.json",
+         transform=train_transforms)
+
+         self.val_dataset = CocoDetection(
+         root=r"/content/drive/MyDrive/Dataset.coco/valid/valid",
+         annFile=r"/content/drive/MyDrive/Dataset.coco/valid/_annotations.coco.json",
+         transform=val_transforms)
+
+         self.test_dataset = CocoDetection(
+         root=r"/content/drive/MyDrive/Dataset.coco/test/test",
+         annFile=r"/content/drive/MyDrive/Dataset.coco/test/_annotations.coco.json",
+         transform=test_transforms)
+
 
         return self.train_dataset, self.val_dataset, self.test_dataset
 
@@ -65,16 +81,27 @@ class RFDETR():
 
     def training(self,train_dataset, val_dataset, test_dataset):
         
-        with open("parameters.yaml", "r") as f:
-         config = yaml.safe_load(f)
+        try:
+         dataset_dir= "C:\\Project\\dataset"
+         output_dir= "C:\\Project\\train_output"
+         with open("parameters.yaml", "r") as f:
+          config = yaml.safe_load(f)
+
+        except Exception as e:
+         dataset_dir= "/content/drive/MyDrive/Dataset.coco"
+         output_dir= "/content/drive/MyDrive/train_output"
+         with open("/content/rfdetr-caries-cavity-detection/Parameters.yaml", "r") as f:
+          config = yaml.safe_load(f)
         
-        config['train_dataset'] = train_dataset
-        config['val_dataset'] = val_dataset
-        config['test_dataset'] = test_dataset
-        config['collate_fn'] = self.collate_fn
+       
 
-
-        self.trained_model = self.model.train(**config)
+        self.trained_model = self.model.train(train_dataset=train_dataset,
+                                              val_dataset=val_dataset,
+                                              test_dataset=test_dataset,
+                                              collate_fn=self.collate_fn,
+                                              dataset_dir= dataset_dir,
+                                              output_dir= output_dir,
+                                              **config)
 
         return self.trained_model
 
@@ -106,7 +133,11 @@ class RFDETR():
          detections=detections # type: ignore
           )
         # Save result
-        output_path = r"C:\\Project\\images_annotated.jpg"
+        try:
+         output_path = r"C:\\Project\\images_annotated.jpg"
+        except Exception as e:
+         output_path = r"/content/rfdetr-caries-cavity-detection/images_annotated.jpg"
+        
         cv2.imwrite(output_path, annotated_img)
 
         print(f"Annotated image saved to: {output_path}")

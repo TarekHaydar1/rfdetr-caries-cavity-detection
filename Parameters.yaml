@@ -2,8 +2,6 @@ amp: False
 # =========================
 # Optimizer settings
 # =========================
-dataset_dir: "C:\\Project\\dataset"  # Path to dataset in COCO format
-output_dir: "C:\\Project\\train_output"  # Directory to save checkpoints and logs
 lr: 1e-4                   # Learning rate for transformer + head
 lr_encoder: 1e-5           # Learning rate for backbone (if unfrozen)
 weight_decay: 1e-4         # L2 regularization to prevent overfitting

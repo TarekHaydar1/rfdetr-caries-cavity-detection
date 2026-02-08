@@ -99,8 +99,8 @@ class RFDETR():
                                               val_dataset=val_dataset,
                                               test_dataset=test_dataset,
                                               collate_fn=self.collate_fn,
-                                              dataset_dir= "C:\\Project\\dataset",
-                                              output_dir= "C:\\Project\\train_output",
+                                              dataset_dir= dataset_dir,
+                                              output_dir= output_dir,
                                               **config)
 
         return self.trained_model
